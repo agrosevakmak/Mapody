@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
 import { uploadToS3 } from "@/lib/s3";
+import { UploadSchema } from "@/lib/validation";
 
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -10,11 +11,15 @@ export async function POST(request: Request) {
   if (!userId) return unauthorized();
 
   try {
-    const { image, filename } = await request.json();
+    const body = await request.json();
+    const parsed = UploadSchema.safeParse(body);
 
-    if (!image || !filename) {
-      return NextResponse.json({ error: "Image data and filename are required" }, { status: 400 });
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
+
+    const { image, filename } = parsed.data;
 
     if (typeof image !== "string" || !image.startsWith("data:image/")) {
       return NextResponse.json({ error: "Invalid image format" }, { status: 400 });

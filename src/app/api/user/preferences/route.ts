@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
+import { UserPreferencesSchema } from "@/lib/validation";
 
 const DEFAULT_PREFERENCES = {
   darkMode: false,
@@ -46,6 +47,9 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
+    const parsed = UserPreferencesSchema.safeParse(body);
+
+    const validBody = parsed.success ? parsed.data : {};
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -57,7 +61,7 @@ export async function PUT(request: Request) {
         ? (user.preferences as Record<string, unknown>)
         : {};
 
-    const merged = { ...DEFAULT_PREFERENCES, ...existing, ...body };
+    const merged = { ...DEFAULT_PREFERENCES, ...existing, ...validBody };
 
     const updated = await prisma.user.update({
       where: { id: userId },

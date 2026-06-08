@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, unauthorized } from '@/lib/api-auth';
 import { createPageFromTemplate, generatePageId, PAGE_TEMPLATES, type SitePage } from '@/lib/page-templates';
+import { SitePageCreateSchema } from '@/lib/validation';
 import type { Prisma } from '@prisma/client';
 
 export async function GET(
@@ -45,7 +46,10 @@ export async function POST(
     }
 
     const body = await request.json();
-    const templateIds: string[] = body.templateIds || ['home', 'about', 'services'];
+    const parsed = SitePageCreateSchema.safeParse(body);
+    const templateIds: string[] = parsed.success
+      ? parsed.data.templateIds
+      : body.templateIds || ['home', 'about', 'services'];
 
     const existingPages = (site.pages as unknown as SitePage[]) || [];
 

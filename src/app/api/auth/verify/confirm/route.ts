@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { VerifyConfirmSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   try {
@@ -13,14 +14,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const { code } = await request.json();
+    const body = await request.json();
+    const parsed = VerifyConfirmSchema.safeParse(body);
 
-    if (!code || code.length !== 6) {
-      return NextResponse.json(
-        { error: "Please enter a valid 6-digit code" },
-        { status: 400 }
-      );
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
+
+    const { code } = parsed.data;
 
     const email = session.user.email;
 

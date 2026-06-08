@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
+import { AnalyticsPostSchema } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 
 export async function POST(request: Request) {
@@ -8,7 +9,15 @@ export async function POST(request: Request) {
   if (!userId) return unauthorized();
 
   try {
-    const { siteId, event, data } = await request.json();
+    const body = await request.json();
+    const parsed = AnalyticsPostSchema.safeParse(body);
+
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
+    }
+
+    const { siteId, event, data } = parsed.data;
 
     const site = await prisma.site.findFirst({ where: { id: siteId, userId } });
     if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
@@ -18,9 +27,9 @@ export async function POST(request: Request) {
     events.push({ event, data, timestamp: new Date().toISOString() });
 
     const clicks = (analytics.clicks as Record<string, number>) || {};
-    if (event === "cta_click") {
-      const label = data?.label || "unknown";
-      clicks[label] = (clicks[label] || 0) + 1;
+    if (event === "cta_click" && data) {
+      const label = (data as Record<string, unknown>).label || "unknown";
+      clicks[label as string] = (clicks[label as string] || 0) + 1;
     }
 
     const views = ((analytics.views as number) || 0) + (event === "page_view" ? 1 : 0);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
+import { UserProfileUpdateSchema } from "@/lib/validation";
 
 export async function GET() {
   const userId = await requireAuth();
@@ -43,7 +44,14 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
-    const { name, phone, bio, company, location, avatar, preferences } = body;
+    const parsed = UserProfileUpdateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
+    }
+
+    const { name, phone, bio, company, location, avatar, preferences } = parsed.data;
 
     const updated = await prisma.user.update({
       where: { id: userId },
@@ -54,7 +62,7 @@ export async function PUT(request: Request) {
         ...(company !== undefined && { company: company || null }),
         ...(location !== undefined && { location: location || null }),
         ...(avatar !== undefined && { avatar: avatar || null }),
-        ...(preferences !== undefined && { preferences }),
+        ...(preferences !== undefined && { preferences: preferences as never }),
       },
       select: {
         id: true,

@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
+import { ExportSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const userId = await requireAuth();
   if (!userId) return unauthorized();
   try {
-    const { html } = await request.json();
+    const body = await request.json();
+    const parsed = ExportSchema.safeParse(body);
 
-    if (!html) {
-      return NextResponse.json({ error: "HTML content is required" }, { status: 400 });
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
+
+    const { html } = parsed.data;
 
     return new NextResponse(html, {
       headers: {

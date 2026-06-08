@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, unauthorized } from '@/lib/api-auth';
+import { SitePageUpdateSchema } from '@/lib/validation';
 import type { SitePage } from '@/lib/page-templates';
 import type { Prisma } from '@prisma/client';
 
@@ -58,16 +59,18 @@ export async function PUT(
     }
 
     const body = await request.json();
+    const parsed = SitePageUpdateSchema.safeParse(body);
+    const validData = parsed.success ? parsed.data : {};
     const page = pages[pageIndex];
 
     const updatedPage: SitePage = {
       ...page,
-      ...(body.name !== undefined && { name: body.name }),
-      ...(body.slug !== undefined && { slug: body.slug }),
-      ...(body.data !== undefined && { data: body.data }),
-      ...(body.sectionOrder !== undefined && { sectionOrder: body.sectionOrder }),
-      ...(body.sections !== undefined && { sections: body.sections }),
-      ...(body.enabled !== undefined && { enabled: body.enabled }),
+      ...(validData.name !== undefined && { name: validData.name }),
+      ...(validData.slug !== undefined && { slug: validData.slug }),
+      ...(validData.data !== undefined && { data: validData.data }),
+      ...(validData.sectionOrder !== undefined && { sectionOrder: validData.sectionOrder }),
+      ...(validData.sections !== undefined && { sections: validData.sections as Record<string, boolean> }),
+      ...(validData.enabled !== undefined && { enabled: validData.enabled }),
     };
 
     pages[pageIndex] = updatedPage;

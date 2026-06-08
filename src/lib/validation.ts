@@ -128,6 +128,60 @@ export const AnalyticsQuerySchema = z.object({
   range: z.enum(["24h", "7d", "30d", "90d"]).optional().default("30d"),
 });
 
+export const UploadSchema = z.object({
+  image: z.string().min(1, "Image data is required").refine(
+    (s) => s.startsWith("data:image/"),
+    "Invalid image format"
+  ),
+  filename: z.string().min(1, "Filename is required").max(200),
+});
+
+export const ExportSchema = z.object({
+  html: z.string().min(1, "HTML content is required").max(500000),
+});
+
+export const AnalyticsPostSchema = z.object({
+  siteId: z.string().min(1, "Site ID is required"),
+  event: z.string().min(1, "Event is required"),
+  data: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const UserProfileUpdateSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  phone: z.string().max(20).optional().or(z.literal("")),
+  bio: z.string().max(500).optional().or(z.literal("")),
+  company: z.string().max(100).optional().or(z.literal("")),
+  location: z.string().max(200).optional().or(z.literal("")),
+  avatar: z.string().url().optional().or(z.literal("")),
+  preferences: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const UserPreferencesSchema = z.object({
+  darkMode: z.boolean().optional(),
+  emailNotifications: z.boolean().optional(),
+  defaultTheme: z.string().max(50).optional(),
+  layoutDensity: z.enum(["compact", "comfortable", "spacious"]).optional(),
+  fontSize: z.enum(["small", "medium", "large", "xlarge"]).optional(),
+  language: z.string().max(10).optional(),
+});
+
+export const VerifyConfirmSchema = z.object({
+  code: z.string().length(6, "Verification code must be 6 digits"),
+});
+
+export const SitePageCreateSchema = z.object({
+  templateIds: z.array(z.string()).min(1, "At least one template required").max(3, "Maximum 3 pages at once"),
+});
+
+export const SitePageUpdateSchema = z.object({
+  name: z.string().max(100).optional(),
+  slug: z.string().max(100).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
+  sectionOrder: z.array(z.string()).optional(),
+  sections: z.record(z.string(), z.unknown()).optional(),
+  enabled: z.boolean().optional(),
+});
+
 export function validateBody<T>(schema: z.ZodSchema<T>, body: unknown): { data: T; error?: never } | { data?: never; error: string } {
   const result = schema.safeParse(body);
   if (result.success) {
