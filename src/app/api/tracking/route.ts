@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
+import { TrackingSchema } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 
 export async function POST(request: Request) {
   const userId = await requireAuth();
   if (!userId) return unauthorized();
   try {
-    const { siteId, event, data: eventData } = await request.json();
-    if (!siteId || !event) return NextResponse.json({ error: "siteId and event required" }, { status: 400 });
+    const body = await request.json();
+    const parsed = TrackingSchema.safeParse(body);
+
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
+    }
+
+    const { siteId, event, data: eventData } = parsed.data;
 
     const site = await prisma.site.findFirst({ where: { id: siteId, userId } });
     if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
@@ -18,9 +26,9 @@ export async function POST(request: Request) {
     events.push({ event, data: eventData, ts: new Date().toISOString() });
 
     const clicks = (analytics.clicks as Record<string, number>) || {};
-    if (event === "cta_click") {
-      const label = eventData?.label || "unknown";
-      clicks[label] = (clicks[label] || 0) + 1;
+    if (event === "cta_click" && eventData) {
+      const label = (eventData as Record<string, unknown>).label || "unknown";
+      clicks[label as string] = (clicks[label as string] || 0) + 1;
     }
 
     const views = ((analytics.views as number) || 0) + (event === "page_view" ? 1 : 0);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ContactSchema } from "@/lib/validation";
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 5;
@@ -24,20 +25,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
     }
 
-    const { siteId, name, email, phone, message } = await request.json();
+    const body = await request.json();
+    const parsed = ContactSchema.safeParse(body);
 
-    if (!siteId || !name || !email || !message) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    if (typeof name !== "string" || name.length > 200) {
-      return NextResponse.json({ error: "Invalid name" }, { status: 400 });
-    }
-    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-    }
-    if (typeof message !== "string" || message.length > 5000) {
-      return NextResponse.json({ error: "Invalid message" }, { status: 400 });
+    const { name, email, message } = parsed.data;
+    const siteId = body.siteId as string;
+    const phone = body.phone as string | undefined;
+
+    if (!siteId) {
+      return NextResponse.json({ error: "Site ID is required" }, { status: 400 });
     }
 
     const site = await prisma.site.findUnique({ where: { id: siteId } });

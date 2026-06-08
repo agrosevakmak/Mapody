@@ -1,24 +1,25 @@
 import { NextResponse } from "next/server";
 import { generateAltText } from "@/lib/ai";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
-import type { ApifyPlaceResult } from "@/lib/apify";
+import { z } from "zod";
 
-function validatePlaceData(data: unknown): data is ApifyPlaceResult {
-  if (!data || typeof data !== "object") return false;
-  const obj = data as Record<string, unknown>;
-  return typeof obj.name === "string" || typeof obj.category === "string";
-}
+const AltTextSchema = z.object({
+  data: z.object({ name: z.string().min(1) }).passthrough(),
+  imageIndex: z.number().int().min(0).optional().default(0),
+});
 
 export async function POST(request: Request) {
   const userId = await requireAuth();
   if (!userId) return unauthorized();
   try {
-    const { data, imageIndex } = await request.json();
-    if (!validatePlaceData(data)) {
-      return NextResponse.json({ error: "Invalid business data" }, { status: 400 });
+    const body = await request.json();
+    const parsed = AltTextSchema.safeParse(body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
-    const idx = typeof imageIndex === "number" && imageIndex >= 0 ? Math.floor(imageIndex) : 0;
-    const result = generateAltText(data, idx);
+    const { data, imageIndex } = parsed.data;
+    const result = generateAltText(data as never, imageIndex);
     return NextResponse.json({ altText: result });
   } catch {
     return NextResponse.json({ error: "Failed to generate alt text" }, { status: 500 });

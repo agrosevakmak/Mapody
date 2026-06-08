@@ -2,32 +2,28 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
 import { generateSubdomain } from "@/lib/utils";
-import { scrapeGoogleMaps, isValidGoogleMapsUrl } from "@/lib/apify";
+import { scrapeGoogleMaps } from "@/lib/apify";
+import { BulkImportSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const userId = await requireAuth();
   if (!userId) return unauthorized();
 
   try {
-    const { urls } = await request.json();
+    const body = await request.json();
+    const parsed = BulkImportSchema.safeParse(body);
 
-    if (!Array.isArray(urls) || urls.length === 0) {
-      return NextResponse.json({ error: "URLs array is required" }, { status: 400 });
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    if (urls.length > 50) {
-      return NextResponse.json({ error: "Maximum 50 URLs per import" }, { status: 400 });
-    }
-
-    const validUrls = urls.filter((url: string) => isValidGoogleMapsUrl(url));
-    if (validUrls.length === 0) {
-      return NextResponse.json({ error: "No valid Google Maps URLs found" }, { status: 400 });
-    }
+    const { urls } = parsed.data;
 
     const results = [];
     const errors = [];
 
-    for (const url of validUrls.slice(0, 50)) {
+    for (const url of urls) {
       try {
         const scrapedData = await scrapeGoogleMaps(url);
         let subdomain = generateSubdomain(scrapedData?.name || "business");

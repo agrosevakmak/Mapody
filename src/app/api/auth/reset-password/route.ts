@@ -1,24 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { ResetPasswordSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   try {
-    const { email, code, newPassword } = await request.json();
+    const body = await request.json();
+    const parsed = ResetPasswordSchema.safeParse(body);
 
-    if (!email || !code || !newPassword) {
-      return NextResponse.json(
-        { error: "Email, code, and new password are required" },
-        { status: 400 }
-      );
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    if (newPassword.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
-    }
+    const { email, code, newPassword } = parsed.data;
 
     const token = await prisma.verificationToken.findFirst({
       where: {

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { scrapeGoogleMaps, isValidGoogleMapsUrl } from "@/lib/apify";
+import { scrapeGoogleMaps } from "@/lib/apify";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
+import { ScrapeSchema } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 
 export async function POST(request: Request) {
@@ -9,35 +10,15 @@ export async function POST(request: Request) {
   if (!userId) return unauthorized();
 
   try {
-    const { url } = await request.json();
+    const body = await request.json();
+    const parsed = ScrapeSchema.safeParse(body);
 
-    if (!url || typeof url !== "string") {
-      return NextResponse.json({ error: "URL is required" }, { status: 400 });
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-    } catch {
-      return NextResponse.json(
-        { error: "Please provide a valid URL" },
-        { status: 400 }
-      );
-    }
-
-    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-      return NextResponse.json(
-        { error: "Please provide a valid HTTP or HTTPS URL" },
-        { status: 400 }
-      );
-    }
-
-    if (!isValidGoogleMapsUrl(url)) {
-      return NextResponse.json(
-        { error: "Please provide a valid Google Maps URL or shareable link" },
-        { status: 400 }
-      );
-    }
+    const { url } = parsed.data;
 
     const placeIdMatch = url.match(/place\/([^/@]+)/);
     const mockPlaceId = placeIdMatch ? placeIdMatch[1].replace(/\+/g, "-") : url.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 60);

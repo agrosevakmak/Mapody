@@ -2,27 +2,22 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
 import bcrypt from "bcryptjs";
+import { UserPasswordSchema } from "@/lib/validation";
 
 export async function PUT(request: Request) {
   const userId = await requireAuth();
   if (!userId) return unauthorized();
 
   try {
-    const { currentPassword, newPassword } = await request.json();
+    const body = await request.json();
+    const parsed = UserPasswordSchema.safeParse(body);
 
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json(
-        { error: "Current password and new password are required" },
-        { status: 400 }
-      );
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "New password must be at least 8 characters" },
-        { status: 400 }
-      );
-    }
+    const { currentPassword, newPassword } = parsed.data;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

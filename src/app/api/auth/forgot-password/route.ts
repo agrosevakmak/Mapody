@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { sendEmail } from "@/lib/email";
+import { ForgotPasswordSchema } from "@/lib/validation";
 
 function generateOTP(): string {
   return crypto.randomInt(100000, 999999).toString();
@@ -9,14 +10,15 @@ function generateOTP(): string {
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
+    const body = await request.json();
+    const parsed = ForgotPasswordSchema.safeParse(body);
 
-    if (!email || typeof email !== "string") {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
+
+    const { email } = parsed.data;
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },

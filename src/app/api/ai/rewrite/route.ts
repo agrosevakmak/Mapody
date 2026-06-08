@@ -1,23 +1,19 @@
 import { NextResponse } from "next/server";
 import { rewriteAboutUs } from "@/lib/ai";
 import { requireAuth, unauthorized } from "@/lib/api-auth";
-import type { ApifyPlaceResult } from "@/lib/apify";
-
-function validatePlaceData(data: unknown): data is ApifyPlaceResult {
-  if (!data || typeof data !== "object") return false;
-  const obj = data as Record<string, unknown>;
-  return typeof obj.name === "string" || typeof obj.description === "string";
-}
+import { PlaceDataSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
   const userId = await requireAuth();
   if (!userId) return unauthorized();
   try {
     const { data } = await request.json();
-    if (!validatePlaceData(data)) {
-      return NextResponse.json({ error: "Invalid business data" }, { status: 400 });
+    const parsed = PlaceDataSchema.safeParse(data);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
-    const result = rewriteAboutUs(data);
+    const result = rewriteAboutUs(parsed.data as never);
     return NextResponse.json({ text: result });
   } catch {
     return NextResponse.json({ error: "Failed to rewrite" }, { status: 500 });
