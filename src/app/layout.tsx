@@ -8,9 +8,23 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Mapody - Turn Google Maps Links Into Websites',
-  description: 'Transform any Google Maps business listing into a beautiful, ready-to-publish website in seconds.',
+  description: 'Transform any Google Maps business listing into a beautiful, ready-to-publish website in seconds. AI-powered content generation, custom themes, and one-click publishing.',
+  keywords: ['google maps', 'website builder', 'business website', 'AI', 'maps to website', 'landing page generator'],
+  openGraph: {
+    title: 'Mapody - Turn Google Maps Links Into Websites',
+    description: 'Paste a Google Maps link. Get a beautiful website in 60 seconds.',
+    images: ['/logo.png'],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Mapody - Turn Google Maps Links Into Websites',
+    description: 'Paste a Google Maps link. Get a beautiful website in 60 seconds.',
+    images: ['/logo.png'],
+  },
   icons: {
-    icon: '/favicon.svg',
+    icon: '/logo.png',
+    apple: '/logo.png',
   },
 };
 
