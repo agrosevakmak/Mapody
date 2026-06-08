@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# env files
+.env
+.env*.local
+
+# build
+.next/
+out/
+tsconfig.tsbuildinfo
+
+# prisma
+# prisma/migrations/  # uncomment if you don't want to track migrations
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# debug
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# outreach scripts (not part of Mapody)
+send_emails.*
+send_deadsimple.js
+send_xlsx*.js
+count_unsent.js
+inspect_xlsx.js
+emails from *.txt
+*.xlsx
+
